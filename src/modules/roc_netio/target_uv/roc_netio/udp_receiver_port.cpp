@@ -11,6 +11,7 @@
 #include "roc_core/panic.h"
 #include "roc_core/shared_ptr.h"
 #include "roc_packet/address_to_str.h"
+#include "roc_packet/ip_to_str.h"
 
 namespace roc {
 namespace netio {
@@ -26,6 +27,7 @@ UDPReceiverPort::UDPReceiverPort(ICloseHandler& close_handler,
     , close_handler_(close_handler)
     , loop_(event_loop)
     , handle_initialized_(false)
+    , multicast_group_joined_(false)
     , recv_started_(false)
     , closed_(false)
     , address_(address)
@@ -89,6 +91,12 @@ bool UDPReceiverPort::open() {
         return false;
     }
 
+    if (address_.multicast()) {
+        if (!join_multicast_group_()) {
+            return false;
+        }
+    }
+
     if (int err = uv_udp_recv_start(&handle_, alloc_cb_, recv_cb_)) {
         roc_log(LogError, "udp receiver: uv_udp_recv_start(): [%s] %s", uv_err_name(err),
                 uv_strerror(err));
@@ -125,6 +133,10 @@ void UDPReceiverPort::async_close() {
         }
 
         recv_started_ = false;
+    }
+
+    if (address_.multicast()) {
+        leave_multicast_group_();
     }
 
     if (!uv_is_closing((uv_handle_t*)&handle_)) {
@@ -261,6 +273,30 @@ void UDPReceiverPort::recv_cb_(uv_udp_t* handle,
     pp->set_data(core::Slice<uint8_t>(*bp, 0, (size_t)nread));
 
     self.writer_.write(pp);
+}
+
+bool UDPReceiverPort::join_multicast_group_() {
+    if (int err = uv_udp_set_membership(&handle_, packet::ip_to_str(address_).c_str(),
+                                        NULL, UV_JOIN_GROUP)) {
+        roc_log(LogError, "udp receiver: uv_udp_set_membership(): [%s] %s",
+                uv_err_name(err), uv_strerror(err));
+        return false;
+    }
+
+    return (multicast_group_joined_ = true);
+}
+
+void UDPReceiverPort::leave_multicast_group_() {
+    if (!multicast_group_joined_) {
+        return;
+    }
+    multicast_group_joined_ = false;
+
+    if (int err = uv_udp_set_membership(&handle_, packet::ip_to_str(address_).c_str(),
+                                        NULL, UV_LEAVE_GROUP)) {
+        roc_log(LogError, "udp receiver: uv_udp_set_membership(): [%s] %s",
+                uv_err_name(err), uv_strerror(err));
+    }
 }
 
 } // namespace netio
