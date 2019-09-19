@@ -14,5 +14,20 @@ namespace sndio {
 IBackend::~IBackend() {
 }
 
+bool IBackend::add_driver_uniq(core::Array<DriverInfo>& arr, const char* driver_name) {
+    for (size_t n = 0; n < arr.size(); n++) {
+        if (strcmp(driver_name, arr[n].name) == 0) {
+            return false;
+        }
+    }
+    if (arr.grow(arr.size() + 1)) {
+        DriverInfo new_driver(driver_name);
+        arr.push_back(new_driver);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 } // namespace sndio
 } // namespace roc

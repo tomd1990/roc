@@ -7,6 +7,7 @@
  */
 
 #include "roc_audio/resampler_profile.h"
+#include "roc_core/array.h"
 #include "roc_core/crash.h"
 #include "roc_core/heap_allocator.h"
 #include "roc_core/log.h"
@@ -17,6 +18,7 @@
 #include "roc_pipeline/parse_port.h"
 #include "roc_pipeline/receiver.h"
 #include "roc_sndio/backend_dispatcher.h"
+#include "roc_sndio/driver_info.h"
 #include "roc_sndio/pump.h"
 
 #include "roc_recv/cmdline.h"
@@ -24,6 +26,8 @@
 using namespace roc;
 
 int main(int argc, char** argv) {
+    core::HeapAllocator allocator;
+
     core::CrashHandler crash_handler;
 
     gengetopt_args_info args;
@@ -38,6 +42,24 @@ int main(int argc, char** argv) {
 
     core::Logger::instance().set_level(
         LogLevel(core::DefaultLogLevel + args.verbose_given));
+
+    if (args.list_drivers_given) {
+        core::Array<sndio::DriverInfo> device_driver_list(allocator);
+        core::Array<sndio::DriverInfo> file_driver_list(allocator);
+        sndio::BackendDispatcher::instance().get_drivers(device_driver_list,
+                                                         sndio::IBackend::ProbeDevice);
+        sndio::BackendDispatcher::instance().get_drivers(file_driver_list,
+                                                         sndio::IBackend::ProbeFile);
+        printf("%s\n", "device drivers:");
+        for (size_t n = 0; n < device_driver_list.size(); n++) {
+            printf("  %s\n", device_driver_list[n].name);
+        }
+        printf("\n%s\n", "file drivers:");
+        for (size_t m = 0; m < file_driver_list.size(); m++) {
+            printf("  %s\n", file_driver_list[m].name);
+        }
+        return 0;
+    }
 
     pipeline::ReceiverConfig config;
 
@@ -183,7 +205,6 @@ int main(int argc, char** argv) {
     config.common.poisoning = args.poisoning_flag;
     config.common.beeping = args.beeping_flag;
 
-    core::HeapAllocator allocator;
     core::BufferPool<uint8_t> byte_buffer_pool(allocator, max_packet_size,
                                                args.poisoning_flag);
     core::BufferPool<audio::sample_t> sample_buffer_pool(

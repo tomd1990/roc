@@ -196,5 +196,22 @@ ISource* SoxBackend::open_source(core::IAllocator& allocator,
     return source.release();
 }
 
+void SoxBackend::get_drivers(core::Array<DriverInfo>& arr, ProbeFlags driver_type) {
+    const sox_format_tab_t* formats = sox_get_format_fns();
+    char const* const* format_names;
+    for (size_t n = 0; formats[n].fn; n++) {
+        sox_format_handler_t const* handler = formats[n].fn();
+        if ((!(handler->flags & SOX_FILE_DEVICE)) & (size_t)(ProbeFile & driver_type) >> 2
+            || ((handler->flags & SOX_FILE_DEVICE) && !(handler->flags & SOX_FILE_PHONY))
+                & (size_t)(ProbeDevice & driver_type) >> 3) {
+            for (format_names = handler->names; *format_names; ++format_names) {
+                if (!strchr(*format_names, '/')) {
+                    add_driver_uniq(arr, *format_names);
+                }
+            }
+        }
+    }
+}
+
 } // namespace sndio
 } // namespace roc

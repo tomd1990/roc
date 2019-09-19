@@ -7,6 +7,7 @@
  */
 
 #include "roc_audio/resampler_profile.h"
+#include "roc_core/array.h"
 #include "roc_core/crash.h"
 #include "roc_core/heap_allocator.h"
 #include "roc_core/log.h"
@@ -18,6 +19,7 @@
 #include "roc_pipeline/port_utils.h"
 #include "roc_pipeline/sender.h"
 #include "roc_sndio/backend_dispatcher.h"
+#include "roc_sndio/driver_info.h"
 #include "roc_sndio/pump.h"
 
 #include "roc_send/cmdline.h"
@@ -25,6 +27,8 @@
 using namespace roc;
 
 int main(int argc, char** argv) {
+    core::HeapAllocator allocator;
+
     core::CrashHandler crash_handler;
 
     gengetopt_args_info args;
@@ -39,6 +43,16 @@ int main(int argc, char** argv) {
 
     core::Logger::instance().set_level(
         LogLevel(core::DefaultLogLevel + args.verbose_given));
+
+    if (args.list_drivers_given) {
+        core::Array<sndio::DriverInfo> driver_list(allocator);
+        sndio::BackendDispatcher::instance().get_drivers(driver_list,
+                                                         sndio::IBackend::ProbeDevice);
+        for (size_t n = 0; n < driver_list.size(); n++) {
+            printf("%s\n", driver_list[n].name);
+        }
+        return 0;
+    }
 
     pipeline::SenderConfig config;
 
@@ -166,7 +180,6 @@ int main(int argc, char** argv) {
     config.interleaving = args.interleaving_flag;
     config.poisoning = args.poisoning_flag;
 
-    core::HeapAllocator allocator;
     core::BufferPool<uint8_t> byte_buffer_pool(allocator, max_packet_size,
                                                args.poisoning_flag);
     core::BufferPool<audio::sample_t> sample_buffer_pool(

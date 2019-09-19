@@ -12,9 +12,11 @@
 #ifndef ROC_SNDIO_IBACKEND_H_
 #define ROC_SNDIO_IBACKEND_H_
 
+#include "roc_core/array.h"
 #include "roc_core/iallocator.h"
 #include "roc_core/shared_ptr.h"
 #include "roc_sndio/config.h"
+#include "roc_sndio/driver_info.h"
 #include "roc_sndio/isink.h"
 #include "roc_sndio/isource.h"
 
@@ -55,6 +57,13 @@ public:
                                  const char* driver,
                                  const char* input,
                                  const Config& config) = 0;
+
+    //! Append supported dirvers to Array
+    virtual void get_drivers(core::Array<DriverInfo>& arr, ProbeFlags driver_type) = 0;
+
+    //! Append driver to array and ensure uniqueness, returns false if unable to add item,
+    //! or if unable to allocate space for item
+    virtual bool add_driver_uniq(core::Array<DriverInfo>& arr, const char* driver_name);
 };
 
 } // namespace sndio

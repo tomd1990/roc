@@ -57,5 +57,13 @@ ISource* PulseaudioBackend::open_source(core::IAllocator&,
     return NULL;
 }
 
+void PulseaudioBackend::get_drivers(core::Array<DriverInfo>& arr,
+                                    ProbeFlags driver_type) {
+    const char* format_name = "pulseaudio";
+    if (driver_type == ProbeDevice) {
+        add_driver_uniq(arr, format_name);
+    }
+}
+
 } // namespace sndio
 } // namespace roc
